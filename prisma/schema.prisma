@@ -1,0 +1,166 @@
+// Gemstone Certificate & QR Verification System — database schema.
+// Run `npm run db:migrate` after editing, which also regenerates the client.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum CertificateStatus {
+  DRAFT
+  PUBLISHED
+  VOIDED
+  SUPERSEDED
+}
+
+enum PrintFormat {
+  CARD
+  A4
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(OPERATOR)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions            Session[]
+  createdCertificates Certificate[] @relation("CreatedBy")
+  auditLogs           AuditLog[]
+}
+
+/// Server-side session. The cookie holds a random token; only its SHA-256 hash is stored.
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  tokenHash String   @unique
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Singleton row (id = 1) holding laboratory branding and configuration.
+model LabSettings {
+  id                 Int         @id @default(1)
+  labName            String      @default("Your Gemmological Laboratory")
+  tagline            String?
+  logoObjectKey      String?
+  addressLine        String?
+  phone              String?
+  email              String?
+  website            String?
+  /// Absolute base URL encoded into QR codes, e.g. https://verify.example.com
+  publicBaseUrl      String?
+  certificatePrefix  String      @default("GEM")
+  primaryColor       String      @default("#1e3a5f")
+  accentColor        String      @default("#b08d57")
+  signatoryName      String?
+  signatoryTitle     String?
+  cardFooterText     String?
+  disclaimerText     String?
+  cardWidthMm        Decimal     @default(85.6) @db.Decimal(6, 2)
+  cardHeightMm       Decimal     @default(54) @db.Decimal(6, 2)
+  defaultPrintFormat PrintFormat @default(CARD)
+  updatedAt          DateTime    @updatedAt
+}
+
+/// Monotonic counters for certificate numbers. Never decremented, so numbers are never recycled.
+model CertificateCounter {
+  key       String   @id // e.g. "GEM-2026"
+  lastValue Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model Certificate {
+  id                String            @id @default(uuid()) @db.Uuid
+  /// Assigned on publish; null while DRAFT.
+  certificateNumber String?           @unique
+  status            CertificateStatus @default(DRAFT)
+
+  specimenName    String
+  weightCt        Decimal  @db.Decimal(10, 3)
+  colour          String?
+  shapeCut        String?
+  hardness        String?
+  specificGravity String?
+  refractiveIndex String?
+  lengthMm        Decimal? @db.Decimal(8, 2)
+  widthMm         Decimal? @db.Decimal(8, 2)
+  depthMm         Decimal? @db.Decimal(8, 2)
+  origin          String?
+  treatment       String?
+  /// Public comments / identification notes (printed and shown on verify page).
+  comments        String?
+  /// Private notes. Never shown publicly.
+  internalNotes   String?
+  imageObjectKey  String?
+  printFormat     PrintFormat?
+  /// Card header colour key (see src/lib/card-colors.ts). Null = shop default.
+  cardColor       String?
+  isDemo          Boolean  @default(false)
+
+  issuedAt    DateTime?
+  /// Absolute verification URL frozen at publish time so reprints keep an identical QR.
+  verifyUrl   String?
+  voidedAt    DateTime?
+  voidReason  String?
+
+  createdById String @db.Uuid
+  createdBy   User   @relation("CreatedBy", fields: [createdById], references: [id])
+
+  /// Draft created as a correction of a published certificate.
+  revisionOfId String?       @db.Uuid
+  revisionOf   Certificate?  @relation("Revision", fields: [revisionOfId], references: [id])
+  revisions    Certificate[] @relation("Revision")
+
+  /// Set when this certificate is superseded by a newer published one.
+  supersededById String?       @unique @db.Uuid
+  supersededBy   Certificate?  @relation("Supersede", fields: [supersededById], references: [id])
+  supersedes     Certificate?  @relation("Supersede")
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  auditLogs AuditLog[]
+
+  @@index([status])
+  @@index([specimenName])
+  @@index([issuedAt])
+  @@index([createdAt])
+  @@index([revisionOfId])
+}
+
+model AuditLog {
+  id            String       @id @default(uuid()) @db.Uuid
+  actorId       String?      @db.Uuid
+  actor         User?        @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  certificateId String?      @db.Uuid
+  certificate   Certificate? @relation(fields: [certificateId], references: [id], onDelete: Restrict)
+  action        String
+  before        Json?
+  after         Json?
+  reason        String?
+  ip            String?
+  createdAt     DateTime     @default(now())
+
+  @@index([certificateId, createdAt])
+  @@index([actorId])
+  @@index([createdAt])
+}

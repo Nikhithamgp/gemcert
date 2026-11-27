@@ -1,26 +1,105 @@
-@import "tailwindcss";
+/* Scan only src/ for class names (not .next/, whose dev logs change on every request and caused a reload loop). */
+@import "tailwindcss" source("..");
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Mauve Pink & Soft Grey (#B76E79 / #B5BCC0), mauve deepened where text sits on it.
+     The "gold" tokens hold the grey accent. */
+  --background: #fbf7f6;
+  --surface: #ffffff;
+  --foreground: #2a1a1d;
+  --muted: #66575a;
+  --border: #ecdfe0;
+  --brand: #7a3f49;
+  --brand-deep: #522831;
+  --brand-contrast: #fbf3f4;
+  --gold: #b5bcc0;
+  --gold-light: #d6dadd;
+  --gold-ink: #5b6267;
+  --sand: #eceeef;
+  --on-dark: #fbf3f4;
+  --on-dark-muted: #e6cdd1;
+  --danger: #b42318;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-ink: var(--gold-ink);
+  --color-sand: var(--sand);
+  --color-on-dark: var(--on-dark);
+  --color-on-dark-muted: var(--on-dark-muted);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-mulish), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-serif: var(--font-cormorant), Georgia, "Times New Roman", serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-brand text-on-dark hover:bg-brand-deep;
+}
+@utility btn-secondary {
+  @apply btn border border-border bg-surface text-foreground hover:bg-sand;
+}
+@utility btn-danger {
+  @apply btn bg-danger text-white hover:opacity-90;
+}
+@utility input {
+  @apply block w-full rounded-md border border-border bg-white px-3 py-2 text-sm shadow-sm focus:border-brand focus:ring-2 focus:ring-brand/20 focus:outline-none aria-invalid:border-danger;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-foreground;
+}
+@utility btn-gold {
+  @apply btn bg-gold px-6 py-3 text-base font-bold text-brand-deep hover:bg-gold-light focus-visible:outline-gold-light;
+}
+@utility btn-outline-light {
+  @apply btn border border-gold-light px-6 py-3 text-base font-bold text-on-dark hover:bg-white/10 focus-visible:outline-gold-light;
+}
+@utility eyebrow {
+  @apply text-xs font-semibold tracking-[0.3em] text-gold-ink uppercase;
+}
+@utility font-display {
+  @apply font-serif font-semibold;
+}
+@utility card {
+  @apply rounded-lg border border-border bg-surface shadow-sm;
+}
+
+/* ---------- Printing ---------- */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-sheet {
+    break-after: page;
+    page-break-after: always;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+  .print-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
